@@ -186,6 +186,12 @@ body {
   display: flex;
   gap: 15px;
   min-height: 160px;
+  cursor: pointer;
+}
+
+.product-card.selected {
+  border: 3px solid #000;
+  background: #f3f3f3;
 }
 
 .product-card img {
@@ -230,6 +236,23 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.selected-product {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.selected-product button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
 }
 
 .generate-btn {
