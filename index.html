@@ -44,7 +44,12 @@
 
       <!-- Selected Products -->
       <div class="selected-products">
-        <h2>Selected Products</h2>
+        <div class="selected-products-heading">
+          <h2>Selected Products</h2>
+          <button id="clearSelectedProducts" type="button" class="clear-btn">
+            Clear All
+          </button>
+        </div>
         <div id="selectedProductsList"></div>
         <button id="generateRoutine" class="generate-btn">
           <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Routine
@@ -75,7 +80,7 @@
 
       <!------- Footer Links ------->
       <footer class="site-footer">
-        <p>&copy; 2025 L'Oréal. All rights reserved.</p>
+        <p>&copy; 2026 L'Oréal. All rights reserved.</p>
         <nav>
           <!-- These URLs are placeholders -->
           <a href="#">Privacy Policy</a>
@@ -84,6 +89,23 @@
         </nav>
       </footer>
     </div>
+
+    <!-- Accessible product description dialog -->
+    <dialog id="productDialog" class="product-dialog" aria-labelledby="dialogTitle">
+      <div class="dialog-content">
+        <button
+          type="button"
+          id="closeProductDialog"
+          class="dialog-close"
+          aria-label="Close product description"
+        >
+          &times;
+        </button>
+        <h2 id="dialogTitle"></h2>
+        <p id="dialogBrand"></p>
+        <p id="dialogDescription"></p>
+      </div>
+    </dialog>
 
     <script src="script.js"></script>
   </body>
