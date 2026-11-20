@@ -27,7 +27,7 @@ const messages = [
   {
     role: "system",
     content:
-      "You are a L'Oréal skincare and beauty advisor. Answer only questions about the generated routine or related topics such as skincare, haircare, makeup, fragrance, and beauty. Use the full conversation history to keep answers relevant. Use current real-time web information when the question asks about new products, prices, availability, ingredients, recalls, or other current facts. Include and cite reliable source links. Politely redirect unrelated questions to a beauty or routine topic.",
+      "You are a L'Oréal skincare and beauty advisor. Answer only questions about the generated routine or related topics such as L'Oréal products, skincare, haircare, makeup, fragrance, ingredients, and beauty routines. Use the full conversation history to keep answers relevant and remember names or preferences the user shares. If a question is unrelated or way off topic, briefly acknowledge the topic from the user's question, politely explain that you cannot help with it, and warmly redirect them to L'Oréal products or beauty routines. Keep your response friendly and conversational. Use current real-time web information when the question asks about new products, prices, availability, ingredients, recalls, or other current facts. Include and cite reliable source links. Format answers with short section titles and simple numbered steps. Do not use Markdown symbols, hashtags, asterisks, or tables.",
   },
 ];
 
@@ -394,7 +394,11 @@ function addChatMessage(content, sender, annotations = [], scrollToBottom = true
   messageElement.className = `chat-message ${sender}`;
 
   const textElement = document.createElement("div");
-  textElement.textContent = content;
+  if (sender === "assistant") {
+    addFormattedAssistantText(textElement, content, true);
+  } else {
+    addClickableLinks(textElement, content);
+  }
   messageElement.appendChild(textElement);
 
   /* Show web-search citation links returned by the API */
@@ -425,6 +429,133 @@ function addChatMessage(content, sender, annotations = [], scrollToBottom = true
     chatWindow.scrollTop = chatWindow.scrollHeight;
   }
   return messageElement;
+}
+
+/* Turn URLs and Markdown-style links into safe, clickable links */
+function addClickableLinks(element, content, useSourceLabel = false) {
+  const linkPattern =
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)/gi;
+
+  let currentPosition = 0;
+  const matches = content.matchAll(linkPattern);
+
+  for (const match of matches) {
+    if (match.index > currentPosition) {
+      element.appendChild(
+        document.createTextNode(content.slice(currentPosition, match.index))
+      );
+    }
+
+    const link = document.createElement("a");
+    const markdownText = match[1];
+    const markdownUrl = match[2];
+    const plainUrl = match[3];
+    const url = markdownUrl || plainUrl;
+
+    link.href = url.replace(/[.,!?;:]$/, "");
+    link.className = "chat-link";
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = markdownText || (useSourceLabel ? "Open source" : url);
+
+    element.appendChild(link);
+
+    const punctuationLength =
+      markdownText || !plainUrl ? 0 : url.match(/[.,!?;:]$/)?.[0].length || 0;
+    currentPosition =
+      match.index +
+      match[0].length -
+      punctuationLength;
+  }
+
+  if (currentPosition < content.length) {
+    element.appendChild(document.createTextNode(content.slice(currentPosition)));
+  }
+}
+
+/* Format assistant replies into clean paragraphs and numbered steps */
+function addFormattedAssistantText(element, content, useSourceLabel = false) {
+  const cleanedContent = content
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?(?:p|div|section|h[1-6])\s*>/gi, "\n")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[*_~]/g, "")
+    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const lines = cleanedContent.split("\n");
+  let paragraphLines = [];
+
+  function addParagraph() {
+    if (paragraphLines.length === 0) return;
+
+    const paragraph = document.createElement("p");
+    addClickableLinks(
+      paragraph,
+      paragraphLines.join(" ").trim(),
+      useSourceLabel
+    );
+    element.appendChild(paragraph);
+    paragraphLines = [];
+  }
+
+  lines.forEach((line) => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      addParagraph();
+      return;
+    }
+
+    const stepMatch = trimmedLine.match(/^(\d+)[.)]\s*(.+)$/);
+    if (stepMatch) {
+      addParagraph();
+
+      const step = document.createElement("p");
+      step.className = "routine-step";
+      const stepNumber = document.createElement("span");
+      stepNumber.className = "routine-step-number";
+      stepNumber.textContent = stepMatch[1];
+      step.appendChild(stepNumber);
+      addClickableLinks(step, ` ${stepMatch[2].trim()}`, useSourceLabel);
+      element.appendChild(step);
+      return;
+    }
+
+    if (/^[-–]/.test(trimmedLine)) {
+      addParagraph();
+      const item = document.createElement("p");
+      item.className = "routine-step";
+      addClickableLinks(
+        item,
+        trimmedLine.replace(/^[-–]\s*/, ""),
+        useSourceLabel
+      );
+      element.appendChild(item);
+      return;
+    }
+
+    if (
+      trimmedLine.length <= 60 &&
+      (trimmedLine.endsWith(":") ||
+        /^[A-Za-z][A-Za-z0-9 &/-]+$/.test(trimmedLine))
+    ) {
+      addParagraph();
+      const heading = document.createElement("p");
+      heading.className = "routine-heading";
+      addClickableLinks(heading, trimmedLine.replace(/:$/, ""), useSourceLabel);
+      element.appendChild(heading);
+      return;
+    }
+
+    paragraphLines.push(trimmedLine);
+  });
+
+  addParagraph();
 }
 
 /* Start at the latest question so the answer appears directly below it */
@@ -484,6 +615,26 @@ chatForm.addEventListener("submit", async (e) => {
   const userMessage = userInput.value.trim();
   if (!userMessage) return;
 
+  /* Stop clearly unrelated questions before they reach the worker */
+  if (isClearlyOffTopic(userMessage)) {
+    const shortQuestion =
+      userMessage.length > 90
+        ? `${userMessage.slice(0, 87).trim()}...`
+        : userMessage;
+    const friendlyReply =
+      `Thanks for asking about "${shortQuestion}". ` +
+      "I’m here to help with L'Oréal products and personalized beauty routines. " +
+      "I can’t help with that other topic, but I’d be happy to talk about skincare, makeup, haircare, fragrance, ingredients, or your routine.";
+
+    addChatMessage(userMessage, "user");
+    addChatMessage(friendlyReply, "assistant");
+    messages.push({ role: "user", content: userMessage });
+    messages.push({ role: "assistant", content: friendlyReply });
+    keepQuestionAndResponseInView();
+    userInput.value = "";
+    return;
+  }
+
   /* Show the user's message and add it to the conversation */
   addChatMessage(userMessage, "user");
   messages.push({ role: "user", content: userMessage });
@@ -491,6 +642,63 @@ chatForm.addEventListener("submit", async (e) => {
 
   await sendToWorker();
 });
+
+/* Recognize common subjects that are outside the beauty and routine scope */
+function isClearlyOffTopic(userMessage) {
+  const friendlyPatterns = [
+    /^(hi|hello|hey|good (morning|afternoon|evening))\b/i,
+    /\b(my name is|i'm|i am|call me|you can call me)\b/i,
+  ];
+
+  if (friendlyPatterns.some((pattern) => pattern.test(userMessage))) {
+    return false;
+  }
+
+  const beautyPatterns = [
+    /\b(l['’]?oréal|loreal|cerave|vichy|lancome|lancôme|maybelline|skincare|skin care|haircare|hair care|makeup|cosmetic|cosmetics|fragrance|perfume|scent|beauty|routine|cleanser|moisturizer|serum|sunscreen|spf|suncare|sun care|retinol|vitamin c|hyaluronic|niacinamide|ingredient|ingredients|acne|wrinkle|wrinkles|dry skin|oily skin|sensitive skin|dark circle|puffy|puffiness|hair|hair color|hair styling|grooming)\b/i,
+  ];
+
+  const explicitOffTopicPatterns = [
+    /\b(weather|temperature|forecast|climate)\b/i,
+    /\b(joke|tell me a joke|funny story)\b/i,
+    /\b(politics|political|president|election|government)\b/i,
+    /\b(sports|football|basketball|baseball|soccer|nfl|nba)\b/i,
+    /\b(code|coding|programming|javascript|python|html|css)\b/i,
+    /\b(recipe|recipes|cook|cooking|bake|baking)\b/i,
+    /\b(movie|film|music|song|celebrity|actor|actress|book|novel)\b/i,
+    /\b(capital|country|geography|history|world war)\b/i,
+    /\b(math|mathematics|calculate|calculus|equation)\b/i,
+    /\b(stock|stocks|bitcoin|crypto|cryptocurrency|investing)\b/i,
+    /\b(gaming|video game|playstation|xbox|nintendo)\b/i,
+    /\b(travel|flight|flights|hotel|vacation)\b/i,
+  ];
+
+  if (explicitOffTopicPatterns.some((pattern) => pattern.test(userMessage))) {
+    return true;
+  }
+
+  if (beautyPatterns.some((pattern) => pattern.test(userMessage))) {
+    return false;
+  }
+
+  /* If a routine has already been generated, allow short conversation follow-ups */
+  const hasRoutineConversation = messages.some(
+    (message) => message.role === "assistant"
+  );
+  const shortFollowUpPatterns = [
+    /^(what|why|how|which|when|where|can|could|should|does|do|is|are)\b/i,
+  ];
+
+  if (
+    hasRoutineConversation &&
+    shortFollowUpPatterns.some((pattern) => pattern.test(userMessage))
+  ) {
+    return false;
+  }
+
+  /* Any unrelated question not covered above should not reach the worker */
+  return true;
+}
 
 /* Restore saved selections when the page loads */
 restoreSelectedProducts();
