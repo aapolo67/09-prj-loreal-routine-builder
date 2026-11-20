@@ -14,6 +14,7 @@ const dialogDescription = document.getElementById("dialogDescription");
 const clearSelectedProducts = document.getElementById("clearSelectedProducts");
 const productSearch = document.getElementById("productSearch");
 const toggleProducts = document.getElementById("toggleProducts");
+const chatbox = document.querySelector(".chatbox");
 let openDetailsId = null;
 const savedProductsKey = "loreal-selected-products";
 
@@ -236,46 +237,6 @@ toggleProducts.addEventListener("click", () => {
   toggleProducts.setAttribute("aria-expanded", String(!productsAreHidden));
 });
 
-/* Apply RTL automatically when the page language is an RTL language */
-const rtlLanguages = ["ar", "he", "fa", "ur", "ps", "sd", "yi"];
-function updateLayoutDirection() {
-  const translatedRoot = document.documentElement;
-  const translatedBody = document.body;
-  const rootAndBodyClasses =
-    `${translatedRoot.className} ${translatedBody.className}`.toLowerCase();
-  const htmlLanguage = (translatedRoot.lang || "").toLowerCase();
-  const browserLanguage = (navigator.language || "en").toLowerCase();
-
-  /* Translation extensions use translated-rtl/translated-ltr classes */
-  let textDirection = "ltr";
-  if (
-    rootAndBodyClasses.includes("translated-rtl") ||
-    rtlLanguages.includes(htmlLanguage.split("-")[0]) ||
-    rtlLanguages.includes(browserLanguage.split("-")[0])
-  ) {
-    textDirection = "rtl";
-  }
-
-  if (rootAndBodyClasses.includes("translated-ltr")) {
-    textDirection = "ltr";
-  }
-
-  document.documentElement.dir = textDirection;
-  translatedBody.classList.toggle("rtl-layout", textDirection === "rtl");
-}
-
-updateLayoutDirection();
-
-/* Watch translation changes without changing or rewriting language attributes */
-const languageObserver = new MutationObserver(updateLayoutDirection);
-languageObserver.observe(document.documentElement, {
-  attributes: true,
-  attributeFilter: ["lang", "dir", "class"],
-  childList: true,
-  subtree: true,
-});
-
-
 /* Add or remove a product when its card is clicked */
 productsContainer.addEventListener("click", async (e) => {
   /* Details buttons open the dialog instead of selecting the card */
@@ -385,7 +346,7 @@ clearSelectedProducts.addEventListener("click", () => {
 
 /* Send messages to the Cloudflare Worker and display the reply */
 async function sendToWorker() {
-  const thinkingMessage = addChatMessage("Thinking...", "assistant");
+  const thinkingMessage = addChatMessage("Thinking...", "assistant", [], false);
 
   try {
     const response = await fetch(workerUrl, {
@@ -411,15 +372,17 @@ async function sendToWorker() {
     /* Save the assistant reply for future follow-up questions */
     messages.push({ role: "assistant", content: reply });
     thinkingMessage.remove();
-    addChatMessage(reply, "assistant", data.choices[0].message.annotations);
+    addChatMessage(reply, "assistant", data.choices[0].message.annotations, false);
+    keepQuestionAndResponseInView();
   } catch (error) {
     thinkingMessage.remove();
-    addChatMessage("Sorry, I could not connect to the routine advisor.", "assistant");
+    addChatMessage("Sorry, I could not connect to the routine advisor.", "assistant", [], false);
+    keepQuestionAndResponseInView();
   }
 }
 
 /* Add a chat bubble without allowing user text to create HTML elements */
-function addChatMessage(content, sender, annotations = []) {
+function addChatMessage(content, sender, annotations = [], scrollToBottom = true) {
   const messageElement = document.createElement("div");
   messageElement.className = `chat-message ${sender}`;
 
@@ -451,8 +414,29 @@ function addChatMessage(content, sender, annotations = []) {
   }
 
   chatWindow.appendChild(messageElement);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  if (scrollToBottom) {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
   return messageElement;
+}
+
+/* Start at the latest question so the answer appears directly below it */
+function keepQuestionAndResponseInView() {
+  const userMessages = chatWindow.querySelectorAll(".chat-message.user");
+  const latestQuestion = userMessages[userMessages.length - 1];
+
+  if (!latestQuestion) return;
+
+  requestAnimationFrame(() => {
+    const chatRect = chatWindow.getBoundingClientRect();
+    const questionRect = latestQuestion.getBoundingClientRect();
+    const distanceFromTop = questionRect.top - chatRect.top;
+
+    chatWindow.scrollTop = Math.max(
+      0,
+      chatWindow.scrollTop + distanceFromTop
+    );
+  });
 }
 
 /* Generate a personalized routine from the selected products */
@@ -478,6 +462,11 @@ generateRoutineButton.addEventListener("click", async () => {
 
   addChatMessage("Generate a routine for my selected products.", "user");
   messages.push({ role: "user", content: userMessage });
+
+  /* Move the page to the chat so the generated routine is easy to see */
+  chatbox.classList.add("chat-active");
+  chatbox.scrollIntoView({ behavior: "smooth", block: "start" });
+
   await sendToWorker();
 });
 

@@ -120,171 +120,21 @@ body {
   outline: none;
 }
 
-/* RTL adjustments for products, selections, and chat */
-body.rtl-layout {
-  direction: rtl;
-  text-align: right;
-}
-
-body.rtl-layout .page-wrapper {
-  direction: rtl;
-  transform: none;
-}
-
-body.rtl-layout .search-section {
-  flex-direction: row-reverse;
-  direction: rtl;
-}
-
-body.rtl-layout .search-section select,
-body.rtl-layout .search-section input,
-body.rtl-layout .chat-form input {
-  text-align: right;
-}
-
-body.rtl-layout .product-card {
-  flex-direction: row-reverse;
-  text-align: right;
-}
-
-body.rtl-layout .selected-products-heading {
-  flex-direction: row-reverse;
-  direction: rtl;
-}
-
-body.rtl-layout .product-selector-actions {
-  justify-content: flex-end;
-  direction: rtl;
-}
-
-body.rtl-layout .product-info {
-  text-align: right;
-}
-
-body.rtl-layout .product-card img {
-  order: 2;
-}
-
-body.rtl-layout .product-card .product-info {
-  order: 1;
-}
-
-body.rtl-layout .details-btn {
-  align-self: flex-end;
-}
-
-body.rtl-layout #selectedProductsList {
-  justify-content: flex-end;
-  direction: rtl;
-}
-
-body.rtl-layout .selected-product {
-  direction: rtl;
-}
-
-body.rtl-layout .selected-product button {
-  order: -1;
-}
-
-body.rtl-layout .generate-btn {
-  direction: rtl;
-  text-align: right;
-}
-
-body.rtl-layout .generate-btn i {
-  margin-right: 0;
-  margin-left: 8px;
-}
-
-body.rtl-layout .clear-btn,
-body.rtl-layout .toggle-products-btn,
-body.rtl-layout .details-btn {
-  direction: rtl;
-}
-
-body.rtl-layout .chat-message.user {
-  margin-right: 0;
-  margin-left: auto;
-  text-align: right;
-  direction: rtl;
-}
-
-body.rtl-layout .chat-message.assistant {
-  margin-left: 0;
-  margin-right: auto;
-  text-align: right;
-  direction: rtl;
-}
-
-body.rtl-layout .chat-form input {
-  text-align: right;
-}
-
-body.rtl-layout .chat-form {
-  flex-direction: row-reverse;
-}
-
-body.rtl-layout .chat-sources {
-  text-align: right;
-}
-
-body.rtl-layout .chat-sources a {
-  direction: rtl;
-  unicode-bidi: embed;
-}
-
-body.rtl-layout .dialog-close {
-  right: auto;
-  left: 12px;
-}
-
-body.rtl-layout .dialog-content h2 {
-  max-width: calc(100% - 44px);
-}
-
-body.rtl-layout .dialog-content {
-  direction: rtl;
-  text-align: right;
-}
-
-body.rtl-layout .site-footer nav {
-  direction: rtl;
-}
-
-body.rtl-layout .chatbox h2,
-body.rtl-layout .selected-products h2 {
-  text-align: right;
-}
-
-body.rtl-layout .placeholder-message,
-body.rtl-layout .chat-window,
-body.rtl-layout .selected-products,
-body.rtl-layout .chatbox,
-body.rtl-layout .site-footer {
-  text-align: right;
-}
-
-body.rtl-layout .product-dialog,
-body.rtl-layout .dialog-content {
-  direction: rtl;
-  text-align: right;
-}
-
-body.rtl-layout .site-footer nav {
-  display: flex;
-  justify-content: center;
-  flex-direction: row-reverse;
-  direction: rtl;
-}
-
 /* chat section */
 .chatbox {
-  margin: 40px 0;
+  width: 100%;
+  min-height: 0;
+  margin: 40px 0 20px;
   border: 2px solid var(--loreal-black);
   border-radius: var(--page-radius);
   padding: 26px;
   background: var(--loreal-white);
   box-shadow: 0 12px 32px rgba(23, 23, 23, 0.08);
+  scroll-margin-top: 0;
+}
+
+.chatbox.chat-active {
+  margin-top: 0;
 }
 
 .chatbox h2 {
@@ -297,8 +147,11 @@ body.rtl-layout .site-footer nav {
   padding: 20px;
   font-size: 18px;
   line-height: 1.5;
-  height: 250px;
+  height: clamp(360px, calc(100vh - 300px), 520px);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   background: var(--loreal-cream);
   margin-bottom: 20px;
   border: 1px solid var(--loreal-light-gray);
@@ -375,7 +228,7 @@ body.rtl-layout .site-footer nav {
 
 /* footer */
 .site-footer {
-  margin: 60px 0 40px;
+  margin: 24px 0 40px;
   text-align: center;
   font-size: 14px;
   color: var(--loreal-gray);
@@ -571,10 +424,12 @@ body.rtl-layout .site-footer nav {
 }
 
 .chat-message {
+  width: fit-content;
   max-width: 85%;
   margin-bottom: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 9px 13px;
+  border-radius: 18px;
+  line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -583,6 +438,7 @@ body.rtl-layout .site-footer nav {
   margin-left: auto;
   background: var(--loreal-red);
   color: var(--loreal-white);
+  border-bottom-right-radius: 5px;
 }
 
 .chat-message.assistant {
@@ -590,6 +446,7 @@ body.rtl-layout .site-footer nav {
   background: var(--loreal-white);
   border: 1px solid var(--loreal-gold);
   color: var(--loreal-black);
+  border-bottom-left-radius: 5px;
 }
 
 .chat-sources {
