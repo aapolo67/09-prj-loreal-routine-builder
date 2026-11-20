@@ -22,7 +22,11 @@
 body {
   font-family: "Montserrat", Arial, Helvetica, sans-serif;
   color: var(--loreal-black);
-  background: linear-gradient(135deg, var(--loreal-cream) 0%, var(--loreal-white) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--loreal-cream) 0%,
+    var(--loreal-white) 100%
+  );
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -120,6 +124,29 @@ body {
   outline: none;
 }
 
+.go-to-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--loreal-red);
+  border-radius: 20px;
+  background: var(--loreal-red);
+  color: var(--loreal-white);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.go-to-chat-btn:hover,
+.go-to-chat-btn:focus-visible {
+  background: var(--loreal-gold);
+  border-color: var(--loreal-gold);
+  color: var(--loreal-black);
+  outline: none;
+}
+
 /* chat section */
 .chatbox {
   width: 100%;
@@ -127,7 +154,7 @@ body {
   margin: 40px 0 20px;
   border: 2px solid var(--loreal-black);
   border-radius: var(--page-radius);
-  padding: 26px;
+  padding: 10px;
   background: var(--loreal-white);
   box-shadow: 0 12px 32px rgba(23, 23, 23, 0.08);
   scroll-margin-top: 0;

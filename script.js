@@ -14,6 +14,7 @@ const dialogDescription = document.getElementById("dialogDescription");
 const clearSelectedProducts = document.getElementById("clearSelectedProducts");
 const productSearch = document.getElementById("productSearch");
 const toggleProducts = document.getElementById("toggleProducts");
+const goToChat = document.getElementById("goToChat");
 const chatbox = document.querySelector(".chatbox");
 let openDetailsId = null;
 const savedProductsKey = "loreal-selected-products";
@@ -235,6 +236,12 @@ toggleProducts.addEventListener("click", () => {
     ? "Show Products"
     : "Hide Products";
   toggleProducts.setAttribute("aria-expanded", String(!productsAreHidden));
+});
+
+/* Move directly to the chat area when the button is clicked */
+goToChat.addEventListener("click", () => {
+  chatbox.classList.add("chat-active");
+  chatbox.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 /* Add or remove a product when its card is clicked */
