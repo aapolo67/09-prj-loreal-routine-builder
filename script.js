@@ -12,6 +12,8 @@ const dialogTitle = document.getElementById("dialogTitle");
 const dialogBrand = document.getElementById("dialogBrand");
 const dialogDescription = document.getElementById("dialogDescription");
 const clearSelectedProducts = document.getElementById("clearSelectedProducts");
+const productSearch = document.getElementById("productSearch");
+const toggleProducts = document.getElementById("toggleProducts");
 let openDetailsId = null;
 const savedProductsKey = "loreal-selected-products";
 
@@ -30,6 +32,7 @@ const messages = [
 /* Keep track of products selected by the user */
 let selectedProducts = [];
 let allProducts = [];
+let productsAreHidden = false;
 
 /* Save selected product IDs so selections survive a page reload */
 function saveSelectedProducts() {
@@ -79,6 +82,94 @@ async function loadProducts() {
   return data.products;
 }
 
+/* Apply both category and keyword filters to the product grid */
+function normalizeSearchText(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/* Count small spelling differences between two words */
+function isCloseSpelling(word, target) {
+  if (word.length < 3 || target.length < 3) return word === target;
+
+  if (target.includes(word) || word.includes(target)) return true;
+
+  let previousRow = Array.from(
+    { length: target.length + 1 },
+    (_, index) => index
+  );
+
+  for (let wordIndex = 1; wordIndex <= word.length; wordIndex++) {
+    const currentRow = [wordIndex];
+
+    for (let targetIndex = 1; targetIndex <= target.length; targetIndex++) {
+      const insertCost = currentRow[targetIndex - 1] + 1;
+      const deleteCost = previousRow[targetIndex] + 1;
+      const replaceCost =
+        previousRow[targetIndex - 1] +
+        (word[wordIndex - 1] === target[targetIndex - 1] ? 0 : 1);
+
+      currentRow[targetIndex] = Math.min(
+        insertCost,
+        deleteCost,
+        replaceCost
+      );
+    }
+
+    previousRow = currentRow;
+  }
+
+  const distance = previousRow[target.length];
+  return distance <= (target.length <= 5 ? 1 : 2);
+}
+
+function filterProducts() {
+  if (allProducts.length === 0) return;
+
+  const selectedCategory = categoryFilter.value;
+  const searchText = normalizeSearchText(productSearch.value);
+  const searchWords = searchText.match(/[a-z0-9]+/g) || [];
+
+  const matchingProducts = allProducts.filter((product) => {
+    let matchesCategory = true;
+
+    if (selectedCategory !== "all") {
+      matchesCategory = product.category === selectedCategory;
+    }
+
+    const searchableText = normalizeSearchText(
+      `${product.name} ${product.brand} ${product.category} ${product.description}`
+    );
+    const searchableWords = searchableText.match(/[a-z0-9]+/g) || [];
+
+    let matchesSearch = searchText === "";
+    if (!matchesSearch) {
+      matchesSearch =
+        searchableText.includes(searchText) ||
+        searchWords.some((searchWord) =>
+          searchableWords.some((productWord) =>
+            isCloseSpelling(searchWord, productWord)
+          )
+        );
+    }
+
+    return matchesCategory && matchesSearch;
+  });
+
+  if (matchingProducts.length === 0) {
+    productsContainer.innerHTML =
+      '<div class="placeholder-message">No matching products found</div>';
+    return;
+  }
+
+  displayProducts(matchingProducts);
+}
+
 /* Create HTML for displaying product cards */
 function displayProducts(products) {
   productsContainer.innerHTML = products
@@ -124,16 +215,66 @@ function displaySelectedProducts() {
 /* Filter and display products when category changes */
 categoryFilter.addEventListener("change", async (e) => {
   allProducts = await loadProducts();
-  const selectedCategory = e.target.value;
-
-  /* filter() creates a new array containing only products 
-     where the category matches what the user selected */
-  const filteredProducts = allProducts.filter(
-    (product) => product.category === selectedCategory
-  );
-
-  displayProducts(filteredProducts);
+  filterProducts();
 });
+
+/* Filter as soon as the user types in the search field */
+productSearch.addEventListener("input", async () => {
+  if (allProducts.length === 0) {
+    allProducts = await loadProducts();
+  }
+  filterProducts();
+});
+
+/* Hide or show the product grid without changing filters or selections */
+toggleProducts.addEventListener("click", () => {
+  productsAreHidden = !productsAreHidden;
+  productsContainer.classList.toggle("products-grid-hidden", productsAreHidden);
+  toggleProducts.textContent = productsAreHidden
+    ? "Show Products"
+    : "Hide Products";
+  toggleProducts.setAttribute("aria-expanded", String(!productsAreHidden));
+});
+
+/* Apply RTL automatically when the page language is an RTL language */
+const rtlLanguages = ["ar", "he", "fa", "ur", "ps", "sd", "yi"];
+function updateLayoutDirection() {
+  const translatedRoot = document.documentElement;
+  const translatedBody = document.body;
+  const rootAndBodyClasses =
+    `${translatedRoot.className} ${translatedBody.className}`.toLowerCase();
+  const htmlLanguage = (translatedRoot.lang || "").toLowerCase();
+  const browserLanguage = (navigator.language || "en").toLowerCase();
+
+  /* Translation extensions use translated-rtl/translated-ltr classes */
+  let textDirection = "ltr";
+  if (
+    rootAndBodyClasses.includes("translated-rtl") ||
+    rtlLanguages.includes(htmlLanguage.split("-")[0]) ||
+    rtlLanguages.includes(browserLanguage.split("-")[0])
+  ) {
+    textDirection = "rtl";
+  }
+
+  if (rootAndBodyClasses.includes("translated-ltr")) {
+    textDirection = "ltr";
+  }
+
+  document.documentElement.dir = textDirection;
+  translatedBody.classList.toggle("rtl-layout", textDirection === "rtl");
+}
+
+updateLayoutDirection();
+
+/* Watch translation changes without changing or rewriting language attributes */
+const languageObserver = new MutationObserver(updateLayoutDirection);
+languageObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ["lang", "dir", "class"],
+  childList: true,
+  subtree: true,
+});
+
 
 /* Add or remove a product when its card is clicked */
 productsContainer.addEventListener("click", async (e) => {
